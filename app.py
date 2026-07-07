@@ -20,7 +20,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://app-tabs4t.example.com",
-        "YOUR_EXAM_ORIGIN"
+        "https://exam.sanand.workers.dev",
     ],
     allow_credentials=True,
     allow_methods=["*"],
