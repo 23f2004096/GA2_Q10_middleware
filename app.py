@@ -20,12 +20,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://app-tabs4t.example.com",
-        # add exam page origin if provided
+        "YOUR_EXAM_ORIGIN"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["X-Request-ID"]
 )
 
 
