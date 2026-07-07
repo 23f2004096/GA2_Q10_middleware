@@ -133,7 +133,7 @@ async def ping(request: Request):
     request_id = request.state.request_id
 
     return {
-        "email": "your-email@example.com",  # <-- replace with your real logged-in email
+        "email": "23f2004096@ds.study.iitm.ac.in",  # <-- replace with your real logged-in email
         "request_id": request_id,
     }
 
