@@ -13,7 +13,7 @@ EMAIL = "23f2004096@ds.study.iitm.ac.in"
 
 
 # -----------------------------
-# CORS FIRST
+# CORS Middleware
 # -----------------------------
 
 app.add_middleware(
@@ -48,20 +48,25 @@ requests = {}
 @app.middleware("http")
 async def request_context(request: Request, call_next):
 
+    # Check incoming X-Request-ID
     request_id = request.headers.get(
         "X-Request-ID"
     )
 
+
+    # Generate new ID if missing
     if not request_id:
         request_id = str(uuid.uuid4())
 
 
+    # Store request ID
     request.state.request_id = request_id
 
 
     response = await call_next(request)
 
 
+    # Add request ID to response header
     response.headers["X-Request-ID"] = request_id
 
 
@@ -77,6 +82,15 @@ async def request_context(request: Request, call_next):
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
 
+    # ======================================
+    # CHANGE ADDED HERE
+    # Allow CORS preflight OPTIONS request
+    # ======================================
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+
+
     client_id = request.headers.get(
         "X-Client-Id",
         "unknown"
@@ -86,16 +100,21 @@ async def rate_limit(request: Request, call_next):
     now = time.time()
 
 
+    # Create bucket for new client
     if client_id not in requests:
         requests[client_id] = []
 
 
+
+    # Remove expired requests
     requests[client_id] = [
         t for t in requests[client_id]
         if now - t < WINDOW
     ]
 
 
+
+    # Check rate limit
     if len(requests[client_id]) >= RATE_LIMIT:
 
         return JSONResponse(
@@ -106,6 +125,8 @@ async def rate_limit(request: Request, call_next):
         )
 
 
+
+    # Add current request timestamp
     requests[client_id].append(now)
 
 
@@ -113,8 +134,9 @@ async def rate_limit(request: Request, call_next):
 
 
 
+
 # -----------------------------
-# Endpoint
+# API Endpoint
 # -----------------------------
 
 @app.get("/ping")
