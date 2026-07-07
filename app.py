@@ -13,24 +13,6 @@ EMAIL = "23f2004096@ds.study.iitm.ac.in"
 
 
 # -----------------------------
-# CORS Middleware
-# -----------------------------
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://app-tabs4t.example.com",
-        "https://exam.sanand.workers.dev",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Request-ID"]
-)
-
-
-
-# -----------------------------
 # Rate Limiter Storage
 # -----------------------------
 
@@ -42,53 +24,16 @@ requests = {}
 
 
 # -----------------------------
-# Request Context Middleware
-# -----------------------------
-
-@app.middleware("http")
-async def request_context(request: Request, call_next):
-
-    # Check incoming X-Request-ID
-    request_id = request.headers.get(
-        "X-Request-ID"
-    )
-
-
-    # Generate new ID if missing
-    if not request_id:
-        request_id = str(uuid.uuid4())
-
-
-    # Store request ID
-    request.state.request_id = request_id
-
-
-    response = await call_next(request)
-
-
-    # Add request ID to response header
-    response.headers["X-Request-ID"] = request_id
-
-
-    return response
-
-
-
-
-# -----------------------------
 # Rate Limit Middleware
+# (PUT FIRST)
 # -----------------------------
 
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
 
-    # ======================================
-    # CHANGE ADDED HERE
-    # Allow CORS preflight OPTIONS request
-    # ======================================
+    # Allow CORS preflight requests
     if request.method == "OPTIONS":
         return await call_next(request)
-
 
 
     client_id = request.headers.get(
@@ -105,16 +50,14 @@ async def rate_limit(request: Request, call_next):
         requests[client_id] = []
 
 
-
-    # Remove expired requests
+    # Remove requests older than 10 seconds
     requests[client_id] = [
         t for t in requests[client_id]
         if now - t < WINDOW
     ]
 
 
-
-    # Check rate limit
+    # Block after 15 requests
     if len(requests[client_id]) >= RATE_LIMIT:
 
         return JSONResponse(
@@ -125,18 +68,75 @@ async def rate_limit(request: Request, call_next):
         )
 
 
-
-    # Add current request timestamp
+    # Add current request
     requests[client_id].append(now)
 
 
-    return await call_next(request)
+    response = await call_next(request)
+
+    return response
 
 
 
 
 # -----------------------------
-# API Endpoint
+# Request Context Middleware
+# -----------------------------
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+
+    request_id = request.headers.get(
+        "X-Request-ID"
+    )
+
+
+    if not request_id:
+        request_id = str(uuid.uuid4())
+
+
+    request.state.request_id = request_id
+
+
+    response = await call_next(request)
+
+
+    # Always return request ID
+    response.headers["X-Request-ID"] = request_id
+
+
+    return response
+
+
+
+
+# -----------------------------
+# CORS Middleware
+# -----------------------------
+
+app.add_middleware(
+    CORSMiddleware,
+
+    allow_origins=[
+        "https://app-tabs4t.example.com",
+        "https://exam.sanand.workers.dev",
+    ],
+
+    allow_credentials=True,
+
+    allow_methods=["*"],
+
+    allow_headers=["*"],
+
+    expose_headers=[
+        "X-Request-ID"
+    ]
+)
+
+
+
+# -----------------------------
+# Endpoint
 # -----------------------------
 
 @app.get("/ping")
